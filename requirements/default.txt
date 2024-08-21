@@ -1,0 +1,2 @@
+dateutils>=0.6.12
+django-celery-beat>=2.6.0

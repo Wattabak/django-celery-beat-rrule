@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-celery-beat-rrule"
+version = "0.0.1"
+description = "Add a RruleDatabaseScheduler, automatically execute tasks based on custom rrule schedules"
+readme = "README.md"
+authors = [{ name = "Vlad Tabakov", email = "contact@vladtabakov.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["django-celery-beat", "rrule", "dateutil"]
+dependencies = [
+    "dateutils >= 0.6.12",
+    "django-celery-beat >= 2.0.0",
+]
+requires-python = ">=3.7"
+
+[project.optional-dependencies]
+dev = ["black", "tox", "isort", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/Wattabak/django-celery-beat-rrule"

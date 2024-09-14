@@ -1,0 +1,55 @@
+# Borrower with modifications from django_celery_beat github
+# Copyright (C) 2019 Sebastian Pipping <sebastian@pipping.org>
+# Licensed under the BSD License (3 clause, also known as the new BSD license)
+
+version: '3'
+
+services:
+  base:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+      tags:
+        - django-celery-beat_base:latest
+    command: ["sleep", "inf"]
+
+  django:
+    depends_on:
+      - base
+      - postgres
+      - rabbit
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+    ports:
+      - "${DJANGO_HOST:-127.0.0.1}:${DJANGO_PORT:-58000}:8000"
+    entrypoint: ["/app/docker/django/entrypoint.sh"]
+    command: ["python3", "manage.py", "runserver", "0.0.0.0:${DJANGO_PORT:-8000}"]
+    tty: true
+    volumes:
+      - './django_celery_beat/:/app/django_celery_beat/'
+
+  celery-beat:
+    depends_on:
+      - base
+      - postgres
+      - rabbit
+    build:
+      context: .
+      dockerfile: docker/celery-beat/Dockerfile
+    entrypoint: ["/app/docker/celery-beat/entrypoint.sh"]
+    environment:
+        CELERY_BROKER_URL: 'amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbit}:${RABBITMQ_PORT:-5672}'
+    command: ["python3", '-m', "celery", "-A", "mysite", "beat", "-l", "info", "--scheduler", "django_celery_beat_rrule.schedulers:RruleDatabaseScheduler"]
+    tty: true
+    volumes:
+      - './django_celery_beat/:/app/django_celery_beat/'
+
+  rabbit:
+    image: rabbitmq
+    ports:
+        - "${RABBITMQ_PORT:-5672}:5672"
+  postgres:
+    image: postgres
+    environment:
+        POSTGRES_PASSWORD: s3cr3t

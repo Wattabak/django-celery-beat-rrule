@@ -1,14 +1,15 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from functools import cached_property
 from logging import getLogger
-from typing import Union, Optional, Callable
+from typing import Optional, Callable
 
 from celery import Celery
 from celery.schedules import BaseSchedule, schedstate
 from celery.utils.time import remaining
-from dateutil.rrule import rrule, rruleset
+from dateutil.rrule import rruleset
 
 
-from .rrule_serializer import rruleset_to_str
+from .rrule_serializer import json_to_rruleset
 
 logger = getLogger(__name__)
 
@@ -16,16 +17,17 @@ logger = getLogger(__name__)
 class rruleschedule(BaseSchedule):
     def __init__(
         self,
-        rrule: Union[rrule, rruleset],
+        rrule: str,
         nowfun: Optional[Callable] = None,
         app: Optional[Celery] = None,
     ):
-        self.rrule = rrule
+        self._rrule = rrule
         super().__init__(nowfun=nowfun, app=app)
 
-    @property
-    def rrulestring(self) -> str:
-        return rruleset_to_str(self.rrule)
+    @cached_property
+    def rrule(self) -> rruleset:
+        """Dont attempt to convert to rrule unless we have to"""
+        return json_to_rruleset(self._rrule)
 
     def next_date(self, last_run_at: datetime) -> Optional[datetime]:
         return self.rrule.after(last_run_at, inc=False)
@@ -34,14 +36,14 @@ class rruleschedule(BaseSchedule):
         """Always assume rrules are naive datetimes, any operations on them should be regarded as such"""
         last_run_at = last_run_at.replace(tzinfo=None)
         next_date = self.next_date(last_run_at=last_run_at)
+        if not next_date:
+            return None
         logger.debug(
-            f"Calculating remaining estimate for {self.rrulestring}"
+            f"Calculating remaining estimate for {self._rrule}"
             f"next_date is {next_date}"
         )
-        return (
-            remaining(last_run_at, next_date - last_run_at, datetime.now(tz=None), True)
-            if next_date is not None
-            else None
+        return remaining(
+            last_run_at, next_date - last_run_at, datetime.now(tz=None), True
         )
 
     def is_due(self, last_run_at: datetime) -> schedstate:
